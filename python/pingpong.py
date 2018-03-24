@@ -26,7 +26,6 @@ try:
         global state
         time_now = time.time()
         if (time_now - time_stamp) >= 0.1:
-            print('button pushed')
             state = gpio.LOW
             sio.write('ping;\n')
             sio.flush();
@@ -54,7 +53,7 @@ try:
         if port.in_waiting > 0:
             if port.in_waiting > 0:
                 command = sio.readline().strip()
-                print(command)
+                print('received', command)
                 if command == "pong;":
                     state = gpio.HIGH
                     sio.flush()
