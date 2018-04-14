@@ -23,7 +23,7 @@ def distance():
     distance = (diff * sonic_speed_mm_per_second) / 2 # back and forth
     return distance
 
-def mean_distance(measure_millis):
+def median_distance(measure_millis):
     if measure_millis < 0:
         raise Exception("measure_millis must be positive, was {}".format(measure_millis))
     start = time.time()
@@ -38,7 +38,7 @@ try:
     GPIO.setup(pin_trigger, GPIO.OUT)
     GPIO.setup(pin_echo, GPIO.IN)
     while True:
-        print(mean_distance(measurement_interval_millis))
+        print(median_distance(measurement_interval_millis))
 except KeyboardInterrupt:
     print("stopped by user")
 except Exception as e:
