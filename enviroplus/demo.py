@@ -2,6 +2,7 @@
 
 import time
 import sys
+from subprocess import PIPE, Popen
 
 from bme280 import BME280
 from smbus2 import SMBus
@@ -12,11 +13,17 @@ import numpy as np
 bus = SMBus(1)
 bme280 = BME280(i2c_dev=bus)
 
+def get_cpu_temp():
+    proc = Popen(['vcgencmd', 'measure_temp'], stdout=PIPE, universal_newlines=True)
+    out, _err = proc.communicate()
+    return float(out[out.index('=') + 1:out.rindex("'")])
+
 try:
     while True:
         temps = np.array([])
         press = np.array([])
         humid = np.array([])
+        light = np.array([])
         nh3 = np.array([])
         oxi = np.array([])
         red = np.array([])
@@ -38,8 +45,13 @@ try:
         n = np.median(nh3)
         o = np.median(oxi)
         r = np.median(red)
-        print('temperature={:.1f}°C, pressure={:.1f} HPa, humidity={:.2f}%'.format(t, p, h))
+        cpu = get_cpu_temp()
+        print('cpu={:.1f}°C, temperature={:.1f}°C, pressure={:.1f} HPa, humidity={:.2f}%'.format(cpu, t, p, h))
         print('nh3 level={:.3f}, oxidising={:.3f}, reducing={:.3f}'.format(n, o, r))
+
+        if cpu > t:
+            approx = t - (cpu - t) * 0.3
+            print('corrected temp: {:.1f}°C'.format(approx))
 
 except KeyboardInterrupt:
     sys.exit(0)
