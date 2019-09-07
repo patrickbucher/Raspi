@@ -77,23 +77,27 @@ def measure_data(n_measurements, sleep_secs):
         'light': (light, 'lux')
     }
 
-try:
-    while True:
-        start = datetime.timestamp(datetime.now())
-        ts = datetime.timestamp(datetime.now())
-        ts = math.floor(ts * 1000) # store in millis
+def main():
+    try:
+        while True:
+            start = datetime.timestamp(datetime.now())
+            ts = datetime.timestamp(datetime.now())
+            ts = math.floor(ts * 1000) # store in millis
 
-        measurements = measure_data(10, 0.05)
-        for key, value in measurements.items():
-            score = value[0]
-            unit = value[1]
-            logging.info('{}={:.3f} {}'.format(key, score, unit))
-            zadd(key, ts, score)
+            measurements = measure_data(10, 0.05)
+            for key, value in measurements.items():
+                score = value[0]
+                unit = value[1]
+                logging.info('{}={:.3f} {}'.format(key, score, unit))
+                zadd(key, ts, score)
 
-        end = datetime.timestamp(datetime.now())
-        diff = end - start
-        if diff < 1.0:
-            time.sleep(1.0 - diff)
+            end = datetime.timestamp(datetime.now())
+            diff = end - start
+            if diff < 1.0:
+                time.sleep(1.0 - diff)
 
-except KeyboardInterrupt:
-    sys.exit(0)
+    except KeyboardInterrupt:
+        sys.exit(0)
+
+if __name__ == '__main__':
+    main()
