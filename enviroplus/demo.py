@@ -32,63 +32,63 @@ def get_cpu_temp():
 def zadd(key, ts, val):
     redis.zadd(key, {val: ts}) # store timestamp as score for lookup
 
+def measure_data(n_measurements, sleep_secs):
+    temps = np.array([])
+    press = np.array([])
+    humid = np.array([])
+    light = np.array([])
+    nh3 = np.array([])
+    oxi = np.array([])
+    red = np.array([])
+    lux = np.array([])
+
+    for i in range(0, n_measurements):
+        temps = np.append(temps, bme280.get_temperature())
+        press = np.append(press, bme280.get_pressure())
+        humid = np.append(humid, bme280.get_humidity())
+        gases = gas.read_all()
+        nh3 = np.append(nh3, gases.nh3)
+        oxi = np.append(oxi, gases.oxidising)
+        red = np.append(red, gases.reducing)
+        lux = np.append(lux, ltr559.get_lux())
+        time.sleep(sleep_secs)
+
+    temperature_raw = np.median(temps)
+    pressure = np.median(press)
+    humidity = np.median(humid)
+    ammonium = np.median(nh3)
+    oxidising = np.median(oxi)
+    reducing = np.median(red)
+    light = np.median(lux)
+    temperature_cpu = get_cpu_temp()
+    temperature_corrected = temperature_raw
+    if temperature_cpu > temperature_raw:
+        temperature_corrected = temperature_raw - (temperature_cpu- temperature_raw) * 0.3
+
+    return {
+        'temperature_raw': (temperature_raw, '°C'),
+        'temperature_cpu': (temperature_cpu, '°C'),
+        'temperature_corrected' : (temperature_corrected, '°C'),
+        'pressure': (pressure, 'hPa'),
+        'humidity': (humidity, '%'),
+        'ammonium': (ammonium, ''),
+        'oxidising': (oxidising, ''),
+        'reducing': (reducing, ''),
+        'light': (light, 'lux')
+    }
+
 try:
     while True:
         start = datetime.timestamp(datetime.now())
-
-        temps = np.array([])
-        press = np.array([])
-        humid = np.array([])
-        light = np.array([])
-        nh3 = np.array([])
-        oxi = np.array([])
-        red = np.array([])
-        lux = np.array([])
-
-        for i in range(0, 10):
-            temps = np.append(temps, bme280.get_temperature())
-            press = np.append(press, bme280.get_pressure())
-            humid = np.append(humid, bme280.get_humidity())
-            gases = gas.read_all()
-            nh3 = np.append(nh3, gases.nh3)
-            oxi = np.append(oxi, gases.oxidising)
-            red = np.append(red, gases.reducing)
-            lux = np.append(lux, ltr559.get_lux())
-            time.sleep(0.05)
-
-        t = np.median(temps)
-        p = np.median(press)
-        h = np.median(humid)
-        n = np.median(nh3)
-        o = np.median(oxi)
-        r = np.median(red)
-        l = np.median(lux)
-        cpu = get_cpu_temp()
-
         ts = datetime.timestamp(datetime.now())
         ts = math.floor(ts * 1000) # store in millis
-        logging.info(ts)
-        zadd('temperature_raw', ts, t)
-        zadd('pressure', ts, p)
-        zadd('humidity', ts, h)
-        zadd('nh3', ts, n)
-        zadd('oxidising', ts, o)
-        zadd('reducing', ts, r)
-        zadd('light', ts, l)
-        zadd('temperature_cpu', ts, cpu)
-        if cpu > t:
-            approx = t - (cpu - t) * 0.3
-            logging.info('corrected temp={:.1f}°C'.format(approx))
-            zadd('temperature_corrected', ts, approx)
 
-        logging.info('cpu={:.1f}°C'.format(cpu))
-        logging.info('temperature={:.1f}°C'.format(t))
-        logging.info('pressure={:.1f} HPa'.format(p))
-        logging.info('humidity={:.2f}%'.format(h))
-        logging.info('nh3 level={:.3f}'.format(n))
-        logging.info('oxidising={:.3f}'.format(o))
-        logging.info('reducing={:.3f}'.format(r))
-        logging.info('light={:.3f} lux'.format(l))
+        measurements = measure_data(10, 0.05)
+        for key, value in measurements.items():
+            score = value[0]
+            unit = value[1]
+            logging.info('{}={:.3f} {}'.format(key, score, unit))
+            zadd(key, ts, score)
 
         end = datetime.timestamp(datetime.now())
         diff = end - start
