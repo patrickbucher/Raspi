@@ -29,6 +29,9 @@ def get_cpu_temp():
     out, _err = proc.communicate()
     return float(out[out.index('=') + 1:out.rindex("'")])
 
+def zadd(key, ts, val):
+    redis.zadd(key, {val: ts}) # store timestamp as score for lookup
+
 try:
     while True:
         start = datetime.timestamp(datetime.now())
@@ -63,18 +66,20 @@ try:
         cpu = get_cpu_temp()
 
         ts = datetime.timestamp(datetime.now())
-        redis.zadd('temperature_raw', {ts: t})
-        redis.zadd('pressure', {ts: p})
-        redis.zadd('humidity', {ts: h})
-        redis.zadd('nh3', {ts: n})
-        redis.zadd('oxidising', {ts: o})
-        redis.zadd('reducing', {ts: r})
-        redis.zadd('light', {ts: l})
-        redis.zadd('temperature_cpu', {ts: cpu})
+        ts = math.floor(ts * 1000) # store in millis
+        logging.info(ts)
+        zadd('temperature_raw', ts, t)
+        zadd('pressure', ts, p)
+        zadd('humidity', ts, h)
+        zadd('nh3', ts, n)
+        zadd('oxidising', ts, o)
+        zadd('reducing', ts, r)
+        zadd('light', ts, l)
+        zadd('temperature_cpu', ts, cpu)
         if cpu > t:
             approx = t - (cpu - t) * 0.3
             logging.info('corrected temp={:.1f}°C'.format(approx))
-            redis.zadd('temperature_corrected', {ts: approx})
+            zadd('temperature_corrected', ts, approx)
 
         logging.info('cpu={:.1f}°C'.format(cpu))
         logging.info('temperature={:.1f}°C'.format(t))
