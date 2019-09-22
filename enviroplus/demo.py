@@ -12,7 +12,7 @@ from bme280 import BME280
 from smbus2 import SMBus
 from enviroplus import gas
 
-import redis
+from influxdb import InfluxDBClient
 import numpy as np
 
 logging.basicConfig(
@@ -22,15 +22,13 @@ logging.basicConfig(
 
 bus = SMBus(1)
 bme280 = BME280(i2c_dev=bus)
-redis = redis.Redis()
+influx = InfluxDBClient(host='localhost', port=8086)
+influx.switch_database('enviro')
 
 def get_cpu_temp():
     proc = Popen(['vcgencmd', 'measure_temp'], stdout=PIPE, universal_newlines=True)
     out, _err = proc.communicate()
     return float(out[out.index('=') + 1:out.rindex("'")])
-
-def zadd(key, ts, val):
-    redis.zadd(key, {val: ts}) # store timestamp as score for lookup
 
 def measure_data(n_measurements, sleep_secs):
     temps = np.array([])
@@ -84,12 +82,15 @@ def main():
             ts = datetime.timestamp(datetime.now())
             ts = math.floor(ts * 1000) # store in millis
 
+            json_body = []
             measurements = measure_data(10, 0.05)
             for key, value in measurements.items():
                 score = value[0]
                 unit = value[1]
                 logging.info('{}={:.3f} {}'.format(key, score, unit))
-                zadd(key, ts, score)
+                item = {'measurement': key, 'fields': { 'value': score, 'unit': unit } }
+                json_body.append(item)
+            influx.write_points(json_body)
 
             end = datetime.timestamp(datetime.now())
             diff = end - start
